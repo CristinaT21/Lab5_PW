@@ -10,7 +10,7 @@ import warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 
 cache = {}
-
+        
 def parse_url(url):
     # Extract host, port, and path from URL
     url_parts = url.split("/")
@@ -70,7 +70,6 @@ def make_http_request(url, use_cache=True):
                 break
             response += data
 
-
         ssl_socket.close()
     cache[url] = {"time": time.time(), "response": response}
     return response
@@ -114,14 +113,28 @@ def print_error():
 
 def main():
     if sys.argv[1] == "-u":
-        if len(sys.argv) == 3:
-            url = sys.argv[2]
-            content = make_http_request(url)
-            return_content(content)
-            return
-        else:
-            print_error()
-            return
+        try:
+            if sys.argv[3] == "-s":
+                if len(sys.argv) == 5:
+                    url = sys.argv[2]
+                    search_term = sys.argv[4]
+                    search_term = search_term.replace(" ", "+")
+                    print(f"Searching for: {search_term}")
+                    results = make_http_request(f"{url}/search?q={search_term}")
+                    return_content(results)
+                else:
+                    print_error()
+                    return    
+        except:
+            if len(sys.argv) == 3:
+                url = sys.argv[2]
+                content = make_http_request(url)
+                return_content(content)
+                return
+            else:
+                print_error()
+                return
+
     elif sys.argv[1] == "-s":
         if len(sys.argv) == 3:
             search_term = sys.argv[2]
@@ -139,5 +152,5 @@ def main():
                 go2web -h               # show this help \n")
         return
 
-if __name__ == "main":
+if __name__ == "__main__":
     main()
