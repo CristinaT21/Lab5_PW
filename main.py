@@ -9,6 +9,8 @@ from bs4 import BeautifulSoup
 import warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 
+cache = {}
+
 def parse_url(url):
     # Extract host, port, and path from URL
     url_parts = url.split("/")
@@ -20,6 +22,12 @@ def parse_url(url):
 
 def make_http_request(url, use_cache=True):
     host, port, path = parse_url(url)
+    if use_cache and url in cache:
+        # Check if the cache has expired
+        if time.time() - cache[url]["time"] < 60:
+            return cache[url]["response"]
+        else:
+            del cache[url]
     request = f"GET {path} HTTP/1.1\r\nHost:{host}\r\nConnection: close\r\n\r\n"
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
@@ -64,7 +72,7 @@ def make_http_request(url, use_cache=True):
 
 
         ssl_socket.close()
-        
+    cache[url] = {"time": time.time(), "response": response}
     return response
 
 def return_search_results(response):
@@ -101,5 +109,5 @@ def main():
                 go2web -h               # show this help \n")
         return
 
-if name == "main":
+if __name__ == "main":
     main()
