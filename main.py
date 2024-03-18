@@ -75,6 +75,27 @@ def make_http_request(url, use_cache=True):
     cache[url] = {"time": time.time(), "response": response}
     return response
 
+def return_content(response):
+    soup = BeautifulSoup(response, 'html.parser')
+    content = soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'a'])
+    for tag in content:
+        if tag.name.startswith('h'):
+            print("\n")
+            print(tag.get_text().strip())
+            print("\n")
+        elif tag.name == 'p':
+            print(tag.get_text().strip())
+        elif tag.name == 'a':
+            try:
+                if tag.get('href').startswith('http'):
+                    print(tag.get_text().strip())
+                    print("~~~", tag.get('href'))
+            except:
+                pass
+        elif tag.name == 'ul':
+            for li in tag.find_all('li'):
+                print("-", li.get_text().strip())
+
 def return_search_results(response):
     soup = BeautifulSoup(response, 'html.parser')
     print("\nSearch Results:")
@@ -92,7 +113,16 @@ def print_error():
     return
 
 def main():
-    if sys.argv[1] == "-s":
+    if sys.argv[1] == "-u":
+        if len(sys.argv) == 3:
+            url = sys.argv[2]
+            content = make_http_request(url)
+            return_content(content)
+            return
+        else:
+            print_error()
+            return
+    elif sys.argv[1] == "-s":
         if len(sys.argv) == 3:
             search_term = sys.argv[2]
             search_term = search_term.replace(" ", "+")
