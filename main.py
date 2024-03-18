@@ -47,6 +47,24 @@ def make_http_request(url, use_cache=True):
     if "application/json" in content_type:
         return json.loads(response.split(b'\r\n\r\n')[1])
 
+    soup = BeautifulSoup(response, 'html.parser')
+    if soup.decode().startswith("HTTP/1.1 30"):
+        print("Redirecting \n")
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        ssl_socket = ssl.wrap_socket(client_socket, ssl_version=ssl.PROTOCOL_TLS)
+        ssl_socket.connect((host, 443))
+        ssl_socket.sendall(request.encode("utf-8"))
+
+        response = b''
+        while True:
+            data = ssl_socket.recv(1024)
+            if not data:
+                break
+            response += data
+
+
+        ssl_socket.close()
+        
     return response
 
 def return_search_results(response):
