@@ -37,6 +37,15 @@ def make_http_request(url, use_cache=True):
     except Exception as e:
         print(f"Error: {e}")
         sys.exit(1)
+    
+    content_type = ""
+    for header in response.split(b'\r\n'):
+        if header.startswith(b'Content-Type:'):
+            content_type = header.decode().split(': ')[1]
+            break
+
+    if "application/json" in content_type:
+        return json.loads(response.split(b'\r\n\r\n')[1])
 
     return response
 
