@@ -9,7 +9,10 @@ from bs4 import BeautifulSoup
 import warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 
-cache = {}
+def http_cache(response):
+    soup = BeautifulSoup(response, 'html.parser')
+    with open("cache_file.txt", "w") as file:
+        file.write(soup.decode('latin-1'))
         
 def parse_url(url):
     # Extract host, port, and path from URL
@@ -20,14 +23,9 @@ def parse_url(url):
     path = "/" + "/".join(url_parts[3:])
     return host, port, path
 
-def make_http_request(url, use_cache=True):
+def make_http_request(url,):
     host, port, path = parse_url(url)
-    if use_cache and url in cache:
-        # Check if the cache has expired
-        if time.time() - cache[url]["time"] < 60:
-            return cache[url]["response"]
-        else:
-            del cache[url]
+    
     request = f"GET {path} HTTP/1.1\r\nHost:{host}\r\nConnection: close\r\n\r\n"
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
@@ -71,7 +69,6 @@ def make_http_request(url, use_cache=True):
             response += data
 
         ssl_socket.close()
-    cache[url] = {"time": time.time(), "response": response}
     return response
 
 def return_content(response):
@@ -122,6 +119,7 @@ def main():
                     print(f"Searching for: {search_term}")
                     results = make_http_request(f"{url}/search?q={search_term}")
                     return_content(results)
+                    http_cache(results)
                 else:
                     print_error()
                     return    
@@ -130,6 +128,7 @@ def main():
                 url = sys.argv[2]
                 content = make_http_request(url)
                 return_content(content)
+                http_cache(results)
                 return
             else:
                 print_error()
@@ -142,13 +141,14 @@ def main():
             print(f"Searching for: {search_term}")
             results = make_http_request(f"https://www.bing.com/search?q={search_term}")
             return_search_results(results)
+            http_cache(results)
         else:
             print_error()
             return
     elif sys.argv[1] == "-h":
         print("Help:\n\
                 go2web -u <URL>         # make an HTTP request to the specified URL and print the response\n\
-                go2web -s <search-term> # make an HTTP request to search the term using your favorite search engine and print top 10 results \n\
+                go2web -s <search-term> # make an HTTP request to search the term using a search engine and print top 10 results\n\
                 go2web -h               # show this help \n")
         return
 
