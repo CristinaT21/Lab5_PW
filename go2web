@@ -128,7 +128,7 @@ def main():
                 url = sys.argv[2]
                 content = make_http_request(url)
                 return_content(content)
-                http_cache(results)
+                http_cache(content)
                 return
             else:
                 print_error()
@@ -150,6 +150,9 @@ def main():
                 go2web -u <URL>         # make an HTTP request to the specified URL and print the response\n\
                 go2web -s <search-term> # make an HTTP request to search the term using a search engine and print top 10 results\n\
                 go2web -h               # show this help \n")
+        return
+    else:
+        print('go2web -h               # show help')
         return
 
 if __name__ == "__main__":
