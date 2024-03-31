@@ -6,8 +6,9 @@ import ssl
 import json
 from ssl import SSLContext
 from bs4 import BeautifulSoup
+from pprint import pprint
 import warnings
-warnings.filterwarnings('ignore', category=DeprecationWarning)
+warnings.filterwarnings('ignore')
 
 def http_cache(response):
     soup = BeautifulSoup(response, 'html.parser')
@@ -25,6 +26,7 @@ def parse_url(url):
 
 def make_http_request(url,):
     host, port, path = parse_url(url)
+    print(f"Host: {host}\nPort: {port}\nPath: {path}")
     
     request = f"GET {path} HTTP/1.1\r\nHost:{host}\r\nConnection: close\r\n\r\n"
     try:
@@ -50,15 +52,30 @@ def make_http_request(url,):
             content_type = header.decode().split(': ')[1]
             break
 
-    if "application/json" in content_type:
-        return json.loads(response.split(b'\r\n\r\n')[1])
-
+    # if "application/json" in content_type:
+    #     pprint(response)
+    #     # return json.loads(response.split(b'\r\n\r\n')[1])
+    # else:
     soup = BeautifulSoup(response, 'html.parser')
-    if soup.decode().startswith("HTTP/1.1 30"):
-        print("Redirecting \n")
+    while soup.decode().startswith("HTTP/1.1 30"):
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        ssl_socket = ssl.wrap_socket(client_socket, ssl_version=ssl.PROTOCOL_TLS)
-        ssl_socket.connect((host, 443))
+        ssl_socket = ssl.wrap_socket(client_socket)
+
+        # Extract new URL from the response
+        new_url = ""
+        for header in response.split(b'\r\n'):
+            if header.startswith(b'Location:'):
+                new_url = header.decode().split(': ')[1]
+                break
+        
+        print(f"Redirecting to: {new_url}")
+
+        host, port, path = parse_url(new_url)
+        port = 443
+        print(f"Host: {host}\nPort: {port}\nPath: {path}")
+        request = f"GET {path} HTTP/1.1\r\nHost:{host}\r\nConnection: close\r\n\r\n"
+
+        ssl_socket.connect((host, port))
         ssl_socket.sendall(request.encode("utf-8"))
 
         response = b''
@@ -69,28 +86,41 @@ def make_http_request(url,):
             response += data
 
         ssl_socket.close()
+        
+        soup = BeautifulSoup(response, 'html.parser') 
+
+
     return response
 
 def return_content(response):
-    soup = BeautifulSoup(response, 'html.parser')
-    content = soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'a'])
-    for tag in content:
-        if tag.name.startswith('h'):
-            print("\n")
-            print(tag.get_text().strip())
-            print("\n")
-        elif tag.name == 'p':
-            print(tag.get_text().strip())
-        elif tag.name == 'a':
-            try:
-                if tag.get('href').startswith('http'):
-                    print(tag.get_text().strip())
-                    print("~~~", tag.get('href'))
-            except:
-                pass
-        elif tag.name == 'ul':
-            for li in tag.find_all('li'):
-                print("-", li.get_text().strip())
+    if "application/json" in response.decode('latin-1')[:150]:
+        json_response = "{" + response.decode('latin-1').split('{', 1)[1]
+        dict_response = json_response.replace("\n", "").replace(" ", "").replace("\t", "").replace("\r", "").replace(":", ": ").replace(",", ", ")
+        input_string = dict_response.strip('0')
+
+        # Parse string to JSON
+        pprint(json.loads(input_string))
+        
+    else:
+        soup = BeautifulSoup(response, 'html.parser')
+        content = soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'a'])
+        for tag in content:
+            if tag.name.startswith('h'):
+                print("\n")
+                print(tag.get_text().strip())
+                print("\n")
+            elif tag.name == 'p':
+                print(tag.get_text().strip())
+            elif tag.name == 'a':
+                try:
+                    if tag.get('href').startswith('http'):
+                        print(tag.get_text().strip())
+                        print("~~~", tag.get('href'))
+                except:
+                    pass
+            elif tag.name == 'ul':
+                for li in tag.find_all('li'):
+                    print("-", li.get_text().strip())
 
 def return_search_results(response):
     soup = BeautifulSoup(response, 'html.parser')
@@ -110,29 +140,29 @@ def print_error():
 
 def main():
     if sys.argv[1] == "-u":
-        try:
+        # try:
+        if len(sys.argv) == 5:
             if sys.argv[3] == "-s":
-                if len(sys.argv) == 5:
-                    url = sys.argv[2]
-                    search_term = sys.argv[4]
-                    search_term = search_term.replace(" ", "+")
-                    print(f"Searching for: {search_term}")
-                    results = make_http_request(f"{url}/search?q={search_term}")
-                    return_content(results)
-                    http_cache(results)
-                else:
-                    print_error()
-                    return    
-        except:
-            if len(sys.argv) == 3:
                 url = sys.argv[2]
-                content = make_http_request(url)
-                return_content(content)
-                http_cache(content)
-                return
+                search_term = sys.argv[4]
+                search_term = search_term.replace(" ", "+")
+                print(f"Searching for: {search_term}")
+                results = make_http_request(f"{url}/search?q={search_term}")
+                return_content(results)
+                http_cache(results)
             else:
                 print_error()
-                return
+                return    
+        # except:
+        elif len(sys.argv) == 3:
+            url = sys.argv[2]
+            content = make_http_request(url)
+            return_content(content)
+            http_cache(content)
+            return
+        else:
+            print_error()
+            return
 
     elif sys.argv[1] == "-s":
         if len(sys.argv) == 3:
